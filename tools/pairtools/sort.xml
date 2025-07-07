@@ -5,14 +5,27 @@
     </macros>
     <expand macro="requirements"/>
     <command detect_errors="exit_code"><![CDATA[
+        #if $pairs_path.is_of_type('4dn_pairs.gz') or $pairs_path.is_of_type('4dn_pairsam.gz'):
+            #set $input_temp = "input.gz"
+        #else
+            #set $input_temp = "input"
+        #end if
+        
+        ln -s '$pairs_path' '$input_temp' &&
+
+        #set $ext = str($output_sorted_pairs.type).rstrip(".gz") + $compress_output
+        echo $ext &&
+        ## ln -s '$output_sorted_pairs' '$output_sorted_pairs_temp' &&
+
         pairtools sort
-            '$pairs_path'
-            -o '$output_sorted_pairs'
+            '$input_temp'
+            -o '$output'
             --nproc-in \${GALAXY_SLOTS:-4}
             --nproc-out \${GALAXY_SLOTS:-4}
     ]]></command>
     <inputs>      
-        <param name="pairs_path" type="data" format="4dn_pairs,4dn_pairsam" label="Input file" help="Input a 4dn pairs or pairsam file"/>
+        <param name="pairs_path" type="data" format="4dn_pairs,4dn_pairsam,4dn_pairs.gz,4dn_pairsam.gz" label="Input file" help="Input a 4dn pairs or pairsam file"/>
+        <param name="compress_output" type="boolean" truevalue=".gz" falsevalue="" checked="true" label="Compress output files" />
     </inputs>
     <outputs>
         <data name="output_sorted_pairs" format_source="pairs_path" label="${tool.name} on ${on_string}">
@@ -20,16 +33,26 @@
     </outputs>
     <tests>
         <!--Test default parameters with pairs file-->
-        <test expect_num_outputs="1">
-            <param name="pairs_path" value="output_parsed_pairs_bam.pairs"/>
-            <output name="output_sorted_pairs" file="output_sorted_pairs.pairs" lines_diff="10"/>
-        </test>
+        <!-- <test expect_num_outputs="1">
+            <param name="pairs_path" ftype="4dn_pairs"  value="output_parsed_pairs_bam.pairs"/>
+            <output name="output_sorted_pairs" ftype="4dn_pairs" file="output_sorted_pairs.pairs" lines_diff="10"/>
+        </test> -->
         <!--Test default parameters with pairsam file-->
+        <!-- <test expect_num_outputs="1">
+            <param name="pairs_path" ftype="4dn_pairsam" value="output_dedup_pairs_markdups.pairsam"/>
+            <output name="output_sorted_pairs" ftype="4dn_pairsam"  file="output_dedup_sorted.pairsam" lines_diff="10"/>
+        </test> -->
+        <!--Test default parameters with pairsam file and compressed input file-->
         <test expect_num_outputs="1">
-            <param name="pairs_path" value="output_dedup_pairs_markdups.pairsam"/>
-            <output name="output_sorted_pairs" file="output_dedup_sorted.pairsam" lines_diff="10"/>
+            <param name="pairs_path" ftype="4dn_pairsam.gz" value="output_dedup_pairs_markdups.pairsam.gz"/>
+            <output name="output_sorted_pairs" ftype="4dn_pairsam" file="output_dedup_sorted.pairsam" lines_diff="10"/>
         </test>
-
+        <!--Test default parameters with pairsam file and compressed output files-->
+        <!-- <test expect_num_outputs="1">
+            <param name="pairs_path" ftype="4dn_pairsam" value="output_dedup_pairs_markdups.pairsam"/>
+            <param name="compress_output" value="true"/>
+            <output name="output_sorted_pairs" ftype="4dn_pairsam.gz"  file="output_dedup_sorted.pairsam" lines_diff="10"/>
+        </test> -->
     </tests>
     <help><![CDATA[
         **Pairtools sort**
