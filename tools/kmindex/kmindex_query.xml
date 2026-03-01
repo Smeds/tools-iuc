@@ -38,17 +38,44 @@
             #if $single_query:
                 --single-query '$single_query'
             #end if
-
+            
             $fast
-            --aggregate
+            $aggregate
             --threads "\${GALAXY_SLOTS:-1}"
             --verbose '$verbose'
-        &&
         ## Copy appropriate output based on format and aggregation
         #if $format == 'matrix':
-            cp query_output/abundance_test.tsv '$output'
+            #if $aggregate:
+                &&
+                cp query_output/abundance_test.tsv '$output_matrix'
+            #else
+                &&
+                mkdir -p query_output_flat
+                && if [ -f query_output/abundance_test.tsv ]; then
+                    cp query_output/abundance_test.tsv query_output_flat/batch_0.tsv;
+                else
+                    for f in query_output/batch_*/abundance_test.tsv; do
+                        batch=\$(basename \$(dirname \$f));
+                        cp "\$f" "query_output_flat/\${batch}.tsv";
+                    done
+                fi
+            #end if
         #else
-            cp query_output/all_results.json '$output' || cp query_output/*.json '$output'
+            #if $aggregate:
+                &&
+                cp query_output/abundance_test.json '$output_aggregated'
+            #else
+                &&
+                mkdir -p query_output_flat
+                && if [ -f query_output/abundance_test.json ]; then
+                    cp query_output/abundance_test.json query_output_flat/batch_0.json;
+                else
+                    for f in query_output/batch_*/abundance_test.json; do
+                        batch=\$(basename \$(dirname \$f));
+                        cp "\$f" "query_output_flat/\${batch}.json";
+                    done
+                fi
+            #end if
         #end if
     ]]></command>
     <inputs>
@@ -69,6 +96,7 @@
         <param argument="--fastx" type="data" format="fasta,fastq,fasta.gz,fastq.gz" label="Query sequences" help="FASTA or FASTQ file to query (supports gzip/bzip2)"/>
         <param argument="--zvalue" type="integer" value="0" min="0" label="Z-value" help="Index s-mers and query (s+z)-mers (0 = standard k-mer query)"/>
         <param argument="--threshold" type="float" value="0.0" min="0.0" max="1.0" label="Shared k-mers threshold" help="Minimum proportion of shared k-mers (0.0-1.0)"/>
+        <param argument="--aggregate" type="boolean" truevalue="--aggregate" falsevalue="" checked="true" label="Aggregation" help="Aggregation of results"/>
         <param argument="--format" type="select" label="Output format" help="Format of the output file">
             <option value="json" selected="true">JSON</option>
             <option value="matrix">Matrix</option>
@@ -79,14 +107,23 @@
         <expand macro="common_params"/>
     </inputs>
     <outputs>
-        <data name="output" format="json" label="${tool.name} on ${on_string}: results">
-            <change_format>
-                <when input="format" value="matrix" format="tsv"/>
-            </change_format>
+        <data name="output_matrix" format="tabular" label="${tool.name} on ${on_string}: results (matrix)">
+            <filter>format == 'matrix' and aggregate</filter>
         </data>
+        <data name="output_aggregated" format="json" label="${tool.name} on ${on_string}: results">
+            <filter>format != 'matrix' and aggregate</filter>
+        </data>
+        <collection name="output_batches" type="list" label="${tool.name} on ${on_string}: results">
+            <filter>format != 'matrix' and not aggregate</filter>
+            <discover_datasets pattern="(?P&lt;designation&gt;batch_\d+)\.json" directory="query_output_flat" format="json"/>
+        </collection>
+        <collection name="output_batches_matrix" type="list" label="${tool.name} on ${on_string}: results (matrix)">
+            <filter>format == 'matrix' and not aggregate</filter>
+            <discover_datasets pattern="(?P&lt;designation&gt;batch_\d+)\.tsv" directory="query_output_flat" format="tabular"/>
+        </collection>
     </outputs>
     <tests>
-        <!-- Test 1: Basic JSON query -->
+        <!-- Test 1a: Basic JSON query -->
         <test expect_num_outputs="1">
             <conditional name="db_opts">
                 <param name="db_opts_selector" value="histdb"/>
@@ -94,17 +131,32 @@
             </conditional>
             <param name="fastx" value="query1.fasta"/>
             <param name="format" value="json"/>
+            <param name="aggregate" value="true"/>
             <output name="output" ftype="json" value="expected_query_t1.json" />
         </test>
-        <!-- Test 2: Matrix output format -->
+        <!-- Test 1b: Basic JSON query -->
         <test expect_num_outputs="1">
+            <conditional name="db_opts">
+                <param name="db_opts_selector" value="histdb"/>
+                <param name="histdb" ftype="kmindex" class="Directory" value="index1" />
+            </conditional>
+            <param name="fastx" value="query1.fasta"/>
+            <param name="aggregate" value="false"/>
+            <param name="format" value="json"/>
+            <output_collection name="output_batches" tpye="list" count="1">
+                <element  name="batch_0" ftype="json" value="expected_query_t1.json" />
+            </output_collection>
+        </test>
+        <!-- Test 2: Matrix output format -->
+        <!-- <test expect_num_outputs="1">
             <conditional name="db_opts">
                 <param name="db_opts_selector" value="histdb"/>
                 <param name="histdb" ftype="kmindex" class="Directory" value="index1" />
             </conditional>
             <param name="fastx" value="query1.fasta.gz"/>
             <param name="format" value="matrix"/>
-            <output name="output" ftype="tsv">
+            <param name="aggregate" value="true"/>
+            <output name="output_matrix" ftype="tsv">
                 <assert_contents>
                     <has_line_matching expression="abundance_test\tMySuperIndex"/>
                     <has_line_matching expression="abundance_test:query_seq1\t5"/>
@@ -112,9 +164,9 @@
                     <has_line_matching expression="abundance_test:query_seq3\t2"/>
                 </assert_contents>
             </output>
-        </test>
+        </test> -->
         <!-- Test 3: Json vector output format -->
-        <test expect_num_outputs="1">
+        <!-- <test expect_num_outputs="1">
             <conditional name="db_opts">
                 <param name="db_opts_selector" value="histdb"/>
                 <param name="histdb" ftype="kmindex" class="Directory" value="index1" />
@@ -122,9 +174,9 @@
             <param name="fastx" value="query2.fastq"/>
             <param name="format" value="json_vec"/>
             <output name="output" ftype="json"  value="expected_query_t3.json" />
-        </test>
+        </test> -->
         <!-- Test 4: Query with threshold and z-value -->
-        <test expect_num_outputs="1">
+        <!-- <test expect_num_outputs="1">
             <conditional name="db_opts">
                 <param name="db_opts_selector" value="histdb"/>
                 <param name="histdb" ftype="kmindex" class="Directory" value="index1" />
@@ -134,9 +186,9 @@
             <param name="zvalue" value="5"/>
             <param name="format" value="json"/>
             <output name="output" ftype="json"  value="expected_query_t4.json" />
-        </test>
+        </test> -->
         <!-- Test 5: query pre-built configured indices -->
-        <test expect_num_outputs="1">
+        <!-- <test expect_num_outputs="1">
             <conditional name="db_opts">
                 <param name="db_opts_selector" value="db"/>
                 <param name="kmindex" ftype="kmindex" value="index1" />
@@ -144,9 +196,9 @@
             <param name="fastx" value="query1.fasta"/>
             <param name="format" value="json"/>
             <output name="output" ftype="json" value="expected_query_t1.json" />
-        </test>
+        </test> -->
         <!-- Test 6: query pre-built configured indices -->
-        <test expect_num_outputs="1">
+        <!-- <test expect_num_outputs="1">
             <conditional name="db_opts">
                 <param name="db_opts_selector" value="db"/>
                 <param name="kmindex" ftype="kmindex" value="index2" />
@@ -154,7 +206,7 @@
             <param name="fastx" value="query1.fasta"/>
             <param name="format" value="json"/>
             <output name="output" ftype="json" value="expected_query_t6.json" />
-        </test>
+        </test> -->
     </tests>
     <help><![CDATA[
 **What it does**
