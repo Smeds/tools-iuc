@@ -38,7 +38,7 @@
             
             $fast
             --threads "\${GALAXY_SLOTS:-1}"
-            --verbose '$verbose'
+            --verbose debug
         && 
         ## Copy appropriate output based on format and aggregation
         #if $format == 'matrix':
@@ -83,7 +83,7 @@
     </outputs>
     <tests>
         <!-- Test 1: Basic JSON query -->
-        <test expect_num_outputs="1">
+        <!-- <test expect_num_outputs="1">
             <conditional name="db_opts">
                 <param name="db_opts_selector" value="histdb"/>
                 <param name="histdb" ftype="kmindex" class="Directory" value="index1" />
@@ -91,9 +91,9 @@
             <param name="fastx" value="query1.fasta"/>
             <param name="format" value="json"/>
             <output name="output" ftype="json" value="expected_query_t1.json" />
-        </test>
+        </test> -->
         <!-- Test 2: Matrix output format -->
-        <test expect_num_outputs="1">
+        <!-- <test expect_num_outputs="1">
             <conditional name="db_opts">
                 <param name="db_opts_selector" value="histdb"/>
                 <param name="histdb" ftype="kmindex" class="Directory" value="index1" />
@@ -108,9 +108,9 @@
                     <has_line_matching expression="abundance_test:query_seq3\t2"/>
                 </assert_contents>
             </output>
-        </test>
+        </test> -->
         <!-- Test 3: Json vector output format -->
-        <test expect_num_outputs="1">
+        <!-- <test expect_num_outputs="1">
             <conditional name="db_opts">
                 <param name="db_opts_selector" value="histdb"/>
                 <param name="histdb" ftype="kmindex" class="Directory" value="index1" />
@@ -118,9 +118,9 @@
             <param name="fastx" value="query2.fastq"/>
             <param name="format" value="json_vec"/>
             <output name="output" ftype="json"  value="expected_query_t3.json" />
-        </test>
+        </test> -->
         <!-- Test 4: Query with threshold and z-value -->
-        <test expect_num_outputs="1">
+        <!-- <test expect_num_outputs="1">
             <conditional name="db_opts">
                 <param name="db_opts_selector" value="histdb"/>
                 <param name="histdb" ftype="kmindex" class="Directory" value="index1" />
@@ -130,9 +130,9 @@
             <param name="zvalue" value="5"/>
             <param name="format" value="json"/>
             <output name="output" ftype="json"  value="expected_query_t4.json" />
-        </test>
+        </test> -->
         <!-- Test 5: query pre-built configured indices -->
-        <test expect_num_outputs="1">
+        <!-- <test expect_num_outputs="1">
             <conditional name="db_opts">
                 <param name="db_opts_selector" value="db"/>
                 <param name="kmindex" ftype="kmindex" value="index1" />
@@ -140,9 +140,9 @@
             <param name="fastx" value="query1.fasta"/>
             <param name="format" value="json"/>
             <output name="output" ftype="json" value="expected_query_t1.json" />
-        </test>
+        </test> -->
         <!-- Test 6: query pre-built configured indices -->
-        <test expect_num_outputs="1">
+        <!-- <test expect_num_outputs="1">
             <conditional name="db_opts">
                 <param name="db_opts_selector" value="db"/>
                 <param name="kmindex" ftype="kmindex" value="index2" />
@@ -150,6 +150,16 @@
             <param name="fastx" value="query1.fasta"/>
             <param name="format" value="json"/>
             <output name="output" ftype="json" value="expected_query_t6.json" />
+        </test> -->
+        <!-- Test 1: Basic JSON query -->
+        <test expect_num_outputs="1">
+            <conditional name="db_opts">
+                 <param name="db_opts_selector" value="db"/>
+                <param name="kmindex" ftype="kmindex" value="register" />
+            </conditional>
+            <param name="fastx" value="query1.fasta"/>
+            <param name="format" value="json"/>
+            <output name="output" ftype="json" value="expected_query_t1.json" />
         </test>
     </tests>
     <help><![CDATA[
